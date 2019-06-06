@@ -1,0 +1,3 @@
+Instant Exit
+1|Enable Instant Exit|instant_exit_enabled
+4|Exit Delay|instant_exit_delay|0|10
