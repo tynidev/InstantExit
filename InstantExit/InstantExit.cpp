@@ -95,16 +95,13 @@ void InstantExit::onMatchEnd(ServerWrapper server, void * params, string eventNa
 
     // Calculate Delay time before exit
     float exitDelayTime = cvarManager->getCvar(delayCvarName).getFloatValue();
-    bool autoGG = cvarManager->getCvar("ranked_autogg").getBoolValue();
-    if (autoGG)
+    if (cvarManager->getCvar("ranked_autogg").getBoolValue())
     {
-        float autoGGDelayTime = cvarManager->getCvar("ranked_autogg_delay").getFloatValue() / 1000;
-        exitDelayTime += autoGGDelayTime;
+        exitDelayTime += cvarManager->getCvar("ranked_autogg_delay").getFloatValue() / 1000;
     }
 
     // Where are we exiting too? Freeplay or Main Menu?
-    bool launchFreeplay = cvarManager->getCvar(launchFreeplayCvarName).getBoolValue();
-    if (launchFreeplay)
+    if (cvarManager->getCvar(launchFreeplayCvarName).getBoolValue())
     {
         gameWrapper->SetTimeout(std::bind(&InstantExit::launchTraining, this), exitDelayTime);
     }
