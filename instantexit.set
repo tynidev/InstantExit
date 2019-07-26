@@ -1,3 +1,4 @@
 Instant Exit
 1|Enable Instant Exit|instant_exit_enabled
+1|Don't automatically exit when ending a casual game.|instant_exit_bypass_casual
 4|Exit Delay|instant_exit_delay|0|10
