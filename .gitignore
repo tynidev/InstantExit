@@ -1,0 +1,12 @@
+﻿################################################################################
+# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
+################################################################################
+
+/.vs
+/InstantExit/Release
+/InstantExit/InstantExit.vcxproj.user
+/Release/InstantExit.pdb
+/Release/InstantExit.lib
+/Release/InstantExit.ipdb
+/Release/InstantExit.iobj
+/Release/InstantExit.exp
