@@ -24,9 +24,12 @@ enum Mode
 
 void InstantExit::onLoad()
 {
-    cvarManager->registerCvar(bypassCasual, "0", "Don't automatically exit when ending a casual game.");
     cvarManager->registerCvar(enabledCvarName, "1", "Determines whether the InstantExit plugin is enabled or disabled.").addOnValueChanged(std::bind(&InstantExit::pluginEnabledChanged, this));
     cvarManager->registerCvar(delayCvarName, "0", "Wait X amount of seconds before exiting");
+    cvarManager->registerCvar(bypassCasualCvarName, "0", "Don't automatically exit when ending a casual game.");
+    cvarManager->registerCvar(launchFreeplayCvarName, "0", "Launch freeplay on exit");
+    cvarManager->registerCvar(trainingMapCvarName, "EuroStadium_Night_P", "Determines the map Instant Training mod will launch on match end.");
+
     hookMatchEnded();
 }
 
@@ -37,6 +40,20 @@ void InstantExit::onUnload()
 void InstantExit::exitGame() const
 {
     cvarManager->executeCommand("unreal_command disconnect");
+}
+
+void InstantExit::launchTraining() const
+{
+    std::stringstream launchTrainingCommandBuilder;
+    std::string mapname = cvarManager->getCvar(trainingMapCvarName).getStringValue();
+    if (mapname.compare("random") == 0)
+    {
+        mapname = gameWrapper->GetRandomMap();
+    }
+    launchTrainingCommandBuilder << "start " << mapname << "?Game=TAGame.GameInfo_Tutorial_TA?GameTags=Freeplay";
+
+    const std::string launchTrainingCommand = launchTrainingCommandBuilder.str();
+    gameWrapper->ExecuteUnrealCommand(launchTrainingCommand);
 }
 
 void InstantExit::pluginEnabledChanged()
@@ -59,22 +76,42 @@ void InstantExit::pluginEnabledChanged()
     }
 }
 
-void InstantExit::delayCheck(ServerWrapper server, void * params, string eventName)
+void InstantExit::onMatchEnd(ServerWrapper server, void * params, string eventName)
 {
-    auto playlist = (Mode)server.GetPlaylist().GetPlaylistId();
-
-    bool bypass = cvarManager->getCvar(bypassCasual).getBoolValue();
-
-    if (bypass && (playlist == CasualChaos ||
-                   playlist == CasualDoubles ||
-                   playlist == CasualDuel ||
-                   playlist == CasualStandard))
+    // Are we bypassing auto exit for casual games?
+    bool bypassCasual = cvarManager->getCvar(bypassCasualCvarName).getBoolValue();
+    if (!server.IsNull() && bypassCasual)
     {
-        return;
+        auto playlist = (Mode)server.GetPlaylist().GetPlaylistId();
+
+        if (playlist == CasualChaos ||
+            playlist == CasualDoubles ||
+            playlist == CasualDuel ||
+            playlist == CasualStandard)
+        {
+            return;
+        }
     }
 
+    // Calculate Delay time before exit
     float exitDelayTime = cvarManager->getCvar(delayCvarName).getFloatValue();
-    gameWrapper->SetTimeout(std::bind(&InstantExit::exitGame, this), exitDelayTime);
+    bool autoGG = cvarManager->getCvar("ranked_autogg").getBoolValue();
+    if (autoGG)
+    {
+        float autoGGDelayTime = cvarManager->getCvar("ranked_autogg_delay").getFloatValue() / 1000;
+        exitDelayTime += autoGGDelayTime;
+    }
+
+    // Where are we exiting too? Freeplay or Main Menu?
+    bool launchFreeplay = cvarManager->getCvar(launchFreeplayCvarName).getBoolValue();
+    if (launchFreeplay)
+    {
+        gameWrapper->SetTimeout(std::bind(&InstantExit::launchTraining, this), exitDelayTime);
+    }
+    else
+    {
+        gameWrapper->SetTimeout(std::bind(&InstantExit::exitGame, this), exitDelayTime);
+    }
 }
 
 void InstantExit::hookMatchEnded()
@@ -82,7 +119,7 @@ void InstantExit::hookMatchEnded()
     gameWrapper->HookEventWithCaller<ServerWrapper>(
         "Function TAGame.GameEvent_Soccar_TA.EventMatchEnded",
         std::bind(
-            &InstantExit::delayCheck,
+            &InstantExit::onMatchEnd,
             this,
             placeholders::_1,
             placeholders::_2,
